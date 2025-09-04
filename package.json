@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "swisseph": "^2.10.3",
+    "swisseph": "2.10.3",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.4.5"
   }
