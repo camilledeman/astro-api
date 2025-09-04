@@ -122,3 +122,4 @@ async function computeChart({year,month,day,hour,minute,lat,lon,tz}){
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, ()=>console.log(`Server ready on http://localhost:${PORT}`));
+
