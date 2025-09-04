@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4",
-    "swisseph": "^3",
+    "swisseph": "^2.10.3",
     "swagger-ui-express": "^5",
     "yaml": "^2"
   },
