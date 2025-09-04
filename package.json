@@ -1,21 +1,18 @@
 {
   "name": "astro-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Soul's Compass Chart API",
+  "main": "server.js",
+  "engines": {
+    "node": "^18 || ^20"
+  },
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "express": "^4",
+    "express": "^4.19.2",
     "swisseph": "^2.10.3",
-    "swagger-ui-express": "^5",
-    "yaml": "^2"
-  },
-  "engines": {
-    "node": ">=18"
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.4.5"
   }
 }
