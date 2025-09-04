@@ -1,0 +1,96 @@
+openapi: 3.0.3
+info:
+  title: Soul's Compass Chart API
+  version: "1.0.0"
+  description: |
+    Simple API to compute key natal placements (Jupiter, North Node, Pluto, Part of Fortune, MC)
+    from birth data using Swiss Ephemeris.
+servers:
+  - url: https://478585fef884.ngrok-free.app/docs
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  /chart:
+    post:
+      operationId: getChart
+      summary: Compute natal placements
+      description: |
+        Returns Jupiter, North Node, Pluto, Part of Fortune and MC, with zodiac sign, degrees and house.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChartRequest"
+            example:
+              year: 1990
+              month: 2
+              day: 10
+              hour: 3
+              minute: 30
+              lat: 50.53
+              lon: 2.64
+              tz: 1
+      responses:
+        "200":
+          description: Placements JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartResponse"
+components:
+  schemas:
+    ChartRequest:
+      type: object
+      required: [year, month, day, hour, minute, lat, lon, tz]
+      properties:
+        year:   { type: integer, example: 1990 }
+        month:  { type: integer, minimum: 1, maximum: 12, example: 2 }
+        day:    { type: integer, minimum: 1, maximum: 31, example: 10 }
+        hour:   { type: number,  minimum: 0, maximum: 23, example: 3 }
+        minute: { type: number,  minimum: 0, maximum: 59, example: 30 }
+        lat:    { type: number,  description: Latitude in decimal degrees, example: 50.53 }
+        lon:    { type: number,  description: Longitude in decimal degrees (East positive), example: 2.64 }
+        tz:     { type: number,  description: Local timezone offset from UTC (e.g., France winter = 1, summer = 2), example: 1 }
+
+    BodyPoint:
+      type: object
+      properties:
+        longitude: { type: number }
+        sign:      { type: string, enum: [Aries,Taurus,Gemini,Cancer,Leo,Virgo,Libra,Scorpio,Sagittarius,Capricorn,Aquarius,Pisces] }
+        degrees:   { type: number, description: Degrees within the sign (0..30) }
+        house:     { type: integer, minimum: 1, maximum: 12, nullable: true }
+
+    PartOfFortune:
+      allOf:
+        - $ref: "#/components/schemas/BodyPoint"
+        - type: object
+          properties:
+            sect:
+              type: string
+              enum: [day, night]
+
+    ChartResponse:
+      type: object
+      properties:
+        jupiter:        { $ref: "#/components/schemas/BodyPoint" }
+        northNode:      { $ref: "#/components/schemas/BodyPoint" }
+        pluto:          { $ref: "#/components/schemas/BodyPoint" }
+        partOfFortune:  { $ref: "#/components/schemas/PartOfFortune" }
+        mc:
+          type: object
+          properties:
+            longitude: { type: number }
+            sign:      { type: string, enum: [Aries,Taurus,Gemini,Cancer,Leo,Virgo,Libra,Scorpio,Sagittarius,Capricorn,Aquarius,Pisces] }
+            degrees:   { type: number }

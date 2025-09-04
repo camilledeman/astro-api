@@ -1,0 +1,21 @@
+{
+  "name": "astro-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4",
+    "swisseph": "^3",
+    "swagger-ui-express": "^5",
+    "yaml": "^2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
