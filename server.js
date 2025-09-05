@@ -9,6 +9,15 @@ const yaml      = require('yaml');
 // pour lire le JSON reçu en POST
 app.use(express.json());
 
+// (facultatif) CORS si tu appelles l'API depuis le web
+const cors = require('cors');
+app.use(cors());
+
+// page d'accueil -> redirige vers la doc
+app.get('/', (_req, res) => {
+  res.redirect('/docs');
+});
+
 // ---------- Utilitaires ----------
 function norm360(x){ const v = x % 360; return v < 0 ? v + 360 : v; }
 function signFromLongitude(longitude){
@@ -62,7 +71,7 @@ app.get('/openapi.yaml', (_req, res) => {
 // ---------- Swagger UI (une seule déclaration) ----------
 const openapiYaml = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
 const openapiDoc  = yaml.parse(openapiYaml);
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 // -------------------------------------------------------
 
 // ---- POST /chart (nouvelle route) ----
