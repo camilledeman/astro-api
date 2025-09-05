@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "swisseph": "2.10.4",
+    "swisseph": "0.5.17",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.4.2"
   }
