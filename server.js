@@ -78,6 +78,25 @@ const openapiYaml = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8'
 const openapiFile = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
 const openapiSpec = yaml.parse(openapiFile);
 const openapiDoc  = yaml.parse(openapiYaml);
+// --- Swagger: lire le YAML et fixer dynamiquement les servers ---
+const raw = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
+const openapiSpec = yaml.parse(raw);
+
+// Sur Render on a RENDER_EXTERNAL_HOSTNAME.
+// PUBLIC_BASE_URL te permet aussi de forcer une URL si besoin.
+const runtimeBase =
+  process.env.PUBLIC_BASE_URL ||
+  (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : null);
+
+// Si on connaît l'URL runtime, on *remplace* les servers du YAML
+if (runtimeBase) {
+  openapiSpec.servers = [
+    { url: runtimeBase, description: 'Render (production)' },
+    { url: 'http://localhost:3000', description: 'Local (dev)' },
+  ];
+}
+
+// Monter Swagger avec ce spec final
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 // -------------------------------------------------------
 
