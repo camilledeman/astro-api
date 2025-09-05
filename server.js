@@ -6,12 +6,16 @@ const swaggerUi = require('swagger-ui-express');
 const fs        = require('fs');
 const yaml      = require('yaml');
 
-// pour lire le JSON reçu en POST
+// for JSON bodies
 app.use(express.json());
 
-// (facultatif) CORS si tu appelles l'API depuis le web
-const cors = require('cors');
-app.use(cors());
+// (optional) redirect home -> docs
+app.get('/', (_req, res) => { res.redirect('/docs'); });
+
+// Load OpenAPI spec and mount Swagger UI
+const openapiFile = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
+const openapiSpec = yaml.parse(openapiFile);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
 // page d'accueil -> redirige vers la doc
 app.get('/', (_req, res) => {
@@ -70,6 +74,9 @@ app.get('/openapi.yaml', (_req, res) => {
 
 // ---------- Swagger UI (une seule déclaration) ----------
 const openapiYaml = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
+// Load and parse the OpenAPI spec for Swagger UI
+const openapiFile = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
+const openapiSpec = yaml.parse(openapiFile);
 const openapiDoc  = yaml.parse(openapiYaml);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 // -------------------------------------------------------
