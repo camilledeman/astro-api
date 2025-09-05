@@ -6,7 +6,8 @@ info:
     Simple API to compute key natal placements (Jupiter, North Node, Pluto, Part of Fortune, MC)
     from birth data using Swiss Ephemeris.
 servers:
-  - url: https://478585fef884.ngrok-free.app/docs
+  - url: https://astro-api-67hc.onrender.com
+    description: Render deployment
 paths:
   /health:
     get:
