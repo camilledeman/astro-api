@@ -6,26 +6,41 @@ const swaggerUi = require('swagger-ui-express');
 const fs        = require('fs');
 const yaml      = require('yaml');
 
-// for JSON bodies
+// ---------- Middlewares ----------
 app.use(express.json());
 
-// (optional) redirect home -> docs
-app.get('/', (_req, res) => { res.redirect('/docs'); });
+// ---------- Root -> docs ----------
+app.get('/', (_req, res) => res.redirect('/docs'));
 
-// Load OpenAPI spec and mount Swagger UI
-const openapiFile = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
-const openapiSpec = yaml.parse(openapiFile);
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
-
-// page d'accueil -> redirige vers la doc
-app.get('/', (_req, res) => {
-  res.redirect('/docs');
+// ---------- Servir le fichier OpenAPI brut ----------
+app.get('/openapi.yaml', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'openapi.yaml'));
 });
 
-// ---------- Utilitaires ----------
+// ---------- Swagger UI (une seule fois) ----------
+const openapiText = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
+let openapiSpec = yaml.parse(openapiText);
+
+// Sur Render, on peut reconstruire l’URL publique automatiquement
+const runtimeBase =
+  process.env.PUBLIC_BASE_URL ||
+  (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : null);
+
+// Si on a une URL runtime, on remplace la section "servers" du YAML
+if (runtimeBase) {
+  openapiSpec.servers = [
+    { url: runtimeBase, description: 'Render (production)' },
+    { url: 'http://localhost:3000', description: 'Local (dev)' },
+  ];
+}
+
+// Monter Swagger
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
+// ---------- Utilitaires astro ----------
 function norm360(x){ const v = x % 360; return v < 0 ? v + 360 : v; }
 function signFromLongitude(longitude){
-  const signs=["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  const signs = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
   const lon = norm360(longitude);
   const i   = Math.floor(lon/30);
   return { sign: signs[i], degrees: lon - i*30 };
@@ -35,23 +50,24 @@ function calcJulDayUT(y,m,d,ut){ return new Promise(r=>swe.swe_julday(y,m,d,ut,s
 function calcPlanet(jd,pl){ return new Promise(r=>swe.swe_calc_ut(jd,pl,swe.SEFLG_SPEED,res=>r(res))); }
 function houseFromCusps(lon,cusps){
   const L = norm360(lon);
-  for(let i=0;i<12;i++){
-    let s=cusps[i], e=cusps[(i+1)%12]; if(e<=s) e+=360;
-    let x=L; if(x<s) x+=360; if(x>=s && x<e) return i+1;
+  for (let i=0; i<12; i++){
+    let s=cusps[i], e=cusps[(i+1)%12]; if (e<=s) e+=360;
+    let x=L; if (x<s) x+=360; if (x>=s && x<e) return i+1;
   }
   return null;
 }
 
-// Health check
-app.get('/health', (_req, res)=>res.send('ok'));
+// ---------- Health ----------
+app.get('/health', (_req, res) => res.send('ok'));
 
-// ---- GET /chart (déjà fonctionnel) ----
+// ---------- GET /chart (query params) ----------
 app.get('/chart', async (req, res) => {
   try {
     const q = req.query;
-    const need=['year','month','day','hour','minute','lat','lon','tz'];
-    for(const k of need){ if(!(k in q)) return res.status(400).json({error:`Missing query param: ${k}`}); }
-
+    const need = ['year','month','day','hour','minute','lat','lon','tz'];
+    for (const k of need) {
+      if (!(k in q)) return res.status(400).json({ error: `Missing query param: ${k}` });
+    }
     const params = {
       year:   parseInt(q.year,10),
       month:  parseInt(q.month,10),
@@ -64,50 +80,19 @@ app.get('/chart', async (req, res) => {
     };
     const out = await computeChart(params);
     res.json(out);
-  } catch(e){ res.status(500).json({error: e.message||String(e)}); }
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
 });
 
-// Servir le fichier OpenAPI brut (YAML)
-app.get('/openapi.yaml', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'openapi.yaml'));
-});
-
-// ---------- Swagger UI (une seule déclaration) ----------
-const openapiYaml = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
-// Load and parse the OpenAPI spec for Swagger UI
-const openapiFile = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
-const openapiSpec = yaml.parse(openapiFile);
-const openapiDoc  = yaml.parse(openapiYaml);
-// --- Swagger: lire le YAML et fixer dynamiquement les servers ---
-const raw = fs.readFileSync(path.join(__dirname, 'openapi.yaml'), 'utf8');
-const openapiSpec = yaml.parse(raw);
-
-// Sur Render on a RENDER_EXTERNAL_HOSTNAME.
-// PUBLIC_BASE_URL te permet aussi de forcer une URL si besoin.
-const runtimeBase =
-  process.env.PUBLIC_BASE_URL ||
-  (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : null);
-
-// Si on connaît l'URL runtime, on *remplace* les servers du YAML
-if (runtimeBase) {
-  openapiSpec.servers = [
-    { url: runtimeBase, description: 'Render (production)' },
-    { url: 'http://localhost:3000', description: 'Local (dev)' },
-  ];
-}
-
-// Monter Swagger avec ce spec final
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
-// -------------------------------------------------------
-
-// ---- POST /chart (nouvelle route) ----
-// Body JSON attendu : { "year":1990, "month":2, "day":10, "hour":3, "minute":30, "lat":50.53, "lon":2.64, "tz":1 }
+// ---------- POST /chart (body JSON) ----------
 app.post('/chart', async (req, res) => {
   try {
     const b = req.body || {};
-    const need=['year','month','day','hour','minute','lat','lon','tz'];
-    for(const k of need){ if(!(k in b)) return res.status(400).json({error:`Missing body field: ${k}`}); }
-
+    const need = ['year','month','day','hour','minute','lat','lon','tz'];
+    for (const k of need) {
+      if (!(k in b)) return res.status(400).json({ error: `Missing body field: ${k}` });
+    }
     const params = {
       year:   parseInt(b.year,10),
       month:  parseInt(b.month,10),
@@ -120,13 +105,15 @@ app.post('/chart', async (req, res) => {
     };
     const out = await computeChart(params);
     res.json(out);
-  } catch(e){ res.status(500).json({error: e.message||String(e)}); }
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
 });
 
-// ---- Fonction de calcul commune ----
+// ---------- Calcul commun ----------
 async function computeChart({year,month,day,hour,minute,lat,lon,tz}){
   const ut = localToUTDecimalHour(hour, minute, tz);
-  const jd  = await calcJulDayUT(year, month, day, ut);
+  const jd = await calcJulDayUT(year, month, day, ut);
 
   const [sun, moon, jupiter, nodeTrue, pluto] = await Promise.all([
     calcPlanet(jd, swe.SE_SUN),
@@ -136,25 +123,27 @@ async function computeChart({year,month,day,hour,minute,lat,lon,tz}){
     calcPlanet(jd, swe.SE_PLUTO),
   ]);
 
-  return await new Promise((resolve, reject)=>{
+  return await new Promise((resolve, reject) => {
     swe.swe_houses(jd, lat, lon, 'P', (h) => {
-      if(!h || !Array.isArray(h.house)) return reject(new Error("swe_houses failed"));
-      const cusps=h.house, asc=h.ascendant, mc=h.mc ?? (h.ascmc ? h.ascmc[1] : null);
-      const sunHouse = houseFromCusps(sun.longitude, cusps), isDay = sunHouse>=7 && sunHouse<=12;
-      const pofLon = isDay ? norm360(asc + moon.longitude - sun.longitude)
-                           : norm360(asc - moon.longitude + sun.longitude);
+      if (!h || !Array.isArray(h.house)) return reject(new Error("swe_houses failed"));
+      const cusps = h.house, asc = h.ascendant, mc = h.mc ?? (h.ascmc ? h.ascmc[1] : null);
+      const sunHouse = houseFromCusps(sun.longitude, cusps);
+      const isDay = sunHouse >= 7 && sunHouse <= 12;
+      const pofLon = isDay
+        ? norm360(asc + moon.longitude - sun.longitude)
+        : norm360(asc - moon.longitude + sun.longitude);
 
       resolve({
-        jupiter:       { longitude: jupiter.longitude,     ...signFromLongitude(jupiter.longitude),   house: houseFromCusps(jupiter.longitude, cusps) },
-        northNode:     { longitude: nodeTrue.longitude,     ...signFromLongitude(nodeTrue.longitude), house: houseFromCusps(nodeTrue.longitude, cusps) },
-        pluto:         { longitude: pluto.longitude,        ...signFromLongitude(pluto.longitude),    house: houseFromCusps(pluto.longitude, cusps) },
-        partOfFortune: { longitude: pofLon,                 ...signFromLongitude(pofLon),              house: houseFromCusps(pofLon, cusps), sect: isDay ? "day" : "night" },
-        mc:            { longitude: mc,                     ...signFromLongitude(mc) }
+        jupiter:       { longitude: jupiter.longitude,  ...signFromLongitude(jupiter.longitude),  house: houseFromCusps(jupiter.longitude, cusps) },
+        northNode:     { longitude: nodeTrue.longitude,  ...signFromLongitude(nodeTrue.longitude), house: houseFromCusps(nodeTrue.longitude, cusps) },
+        pluto:         { longitude: pluto.longitude,     ...signFromLongitude(pluto.longitude),    house: houseFromCusps(pluto.longitude, cusps) },
+        partOfFortune: { longitude: pofLon,              ...signFromLongitude(pofLon),             house: houseFromCusps(pofLon, cusps), sect: isDay ? "day" : "night" },
+        mc:            { longitude: mc,                  ...signFromLongitude(mc) }
       });
     });
   });
 }
 
+// ---------- Start ----------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=>console.log(`Server ready on http://localhost:${PORT}`));
-
+app.listen(PORT, () => console.log(`Server ready on http://localhost:${PORT}`));
